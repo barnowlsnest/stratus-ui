@@ -6,19 +6,32 @@ import type { Connection } from "./connections";
 
 const clients = new Map<string, StratusClient>();
 
+const build = (c: Connection): StratusClient =>
+  createStratusClient({
+    address: c.address,
+    token: c.token ?? "",
+    tls: c.transport === "plaintext" ? false : c.transport === "tls-ca" && c.caFile ? { caFile: c.caFile } : true,
+    channelOptions: { "grpc.max_receive_message_length": -1 },
+  });
+
 function clientFor(c: Connection): StratusClient {
   const key = [c.id, c.address, c.transport, c.caFile ?? "", c.token ?? ""].join("|");
   let client = clients.get(key);
   if (!client) {
-    client = createStratusClient({
-      address: c.address,
-      token: c.token ?? "",
-      tls: c.transport === "plaintext" ? false : c.transport === "tls-ca" && c.caFile ? { caFile: c.caFile } : true,
-      channelOptions: { "grpc.max_receive_message_length": -1 },
-    });
+    client = build(c);
     clients.set(key, client);
   }
   return client;
+}
+
+/** Closes and forgets the clients of a removed connection, releasing their channels and tokens. */
+export function evictClients(id: string): void {
+  for (const [key, client] of clients) {
+    if (key.startsWith(`${id}|`)) {
+      client.close();
+      clients.delete(key);
+    }
+  }
 }
 
 /** A gRPC failure reduced to what the UI shows. */
@@ -59,11 +72,26 @@ const range = (r: Range): StreamRange => ({ start: safe(r.start), end: safe(r.en
 export const toRecord = (r: OutputRecord): StreamRecord => ({ id: safe(r.id), data: Buffer.from(r.rawData).toString("base64") });
 
 export function getInfo(c: Connection): Promise<StreamInfo> {
+  return run(async () => toInfo(await clientFor(c).getStreamInfo({ deadlineMs: 5_000 })));
+}
+
+/** Tries a connection that is not saved: a one-off client, closed afterwards, never cached. */
+export function probeInfo(c: Connection): Promise<StreamInfo> {
   return run(async () => {
-    const info = await clientFor(c).getStreamInfo({ deadlineMs: 5_000 });
-    return { range: range(info.range), cached: safe(info.cachedRecords), disk: safe(info.fsRecords) };
+    const client = build(c);
+    try {
+      return toInfo(await client.getStreamInfo({ deadlineMs: 5_000 }));
+    } finally {
+      client.close();
+    }
   });
 }
+
+const toInfo = (info: Awaited<ReturnType<StratusClient["getStreamInfo"]>>): StreamInfo => ({
+  range: range(info.range),
+  cached: safe(info.cachedRecords),
+  disk: safe(info.fsRecords),
+});
 
 export async function readRange(c: Connection, startId: number, endId: number): Promise<StreamRecord[]> {
   try {

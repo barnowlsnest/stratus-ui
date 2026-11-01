@@ -18,7 +18,7 @@
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "server-only": "^0.0.1",
-    "ts-stratus": "github:barnowlsnest/ts-stratus#ab9c4bcb5a98a886d2cc6ece2bf5e70b387d330c"
+    "ts-stratus": "github:barnowlsnest/ts-stratus#43960dacbbea0334f6e3633c7f77f633463feff7"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.3.3",

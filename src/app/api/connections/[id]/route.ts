@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { evictClients } from "@/lib/server/stratus";
 import { ACTIVE_COOKIE, getConnection, removeConnection } from "@/lib/server/connections";
 
 type Ctx = { params: Promise<{ id: string }> };
@@ -13,6 +14,8 @@ export async function PUT(_req: NextRequest, { params }: Ctx) {
 }
 
 export async function DELETE(_req: NextRequest, { params }: Ctx) {
-  await removeConnection((await params).id);
+  const { id } = await params;
+  await removeConnection(id);
+  evictClients(id);
   return NextResponse.json({ ok: true });
 }

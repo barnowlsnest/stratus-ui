@@ -4,6 +4,10 @@ import { openTail, toError, toRecord } from "@/lib/server/stratus";
 
 export const dynamic = "force-dynamic";
 
+/** Practical bounds for one tail: far beyond any UI use, well inside a gRPC duration. */
+const MAX_RECORDS = 100_000;
+const MAX_TIMEOUT_SEC = 3600;
+
 const sse = (event: string, data: unknown) => `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
 
 /** Live tail as server-sent events: `records`, then `end` or `error`. */
@@ -13,6 +17,9 @@ export async function GET(req: NextRequest) {
   const max = parseId(q.get("max"));
   const timeout = parseId(q.get("timeout"));
   if (start === null || max === null || timeout === null) return NextResponse.json({ error: "start, max and timeout must be whole numbers" }, { status: 400 });
+  if (max > MAX_RECORDS || timeout > MAX_TIMEOUT_SEC) {
+    return NextResponse.json({ error: `max is at most ${MAX_RECORDS} and timeout at most ${MAX_TIMEOUT_SEC}s` }, { status: 400 });
+  }
   let conn;
   try {
     conn = await connectionFor(req);

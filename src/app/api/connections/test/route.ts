@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { fail } from "@/lib/server/api";
-import { getInfo } from "@/lib/server/stratus";
+import { getInfo, probeInfo } from "@/lib/server/stratus";
 import { getConnection } from "@/lib/server/connections";
 import { readObject, validate, type ConnectionInput } from "@/lib/server/validate";
 
@@ -15,7 +15,7 @@ export async function POST(req: NextRequest) {
     }
     const problem = validate(input);
     if (problem) return NextResponse.json({ error: problem }, { status: 400 });
-    const info = await getInfo({
+    const info = await probeInfo({
       id: `probe:${input.address}`,
       name: "probe",
       address: input.address!.trim(),

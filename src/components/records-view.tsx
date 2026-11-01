@@ -115,7 +115,10 @@ export function RecordsView() {
     const es = new EventSource(`/api/tail?start=${from}&max=${encodeURIComponent(tailMax)}&timeout=${seconds(tailTimeout)}`);
     source.current = es;
     setFollowing(true);
+    // A queued event from a tail that was replaced or stopped must not touch the current view.
+    const live = () => source.current === es;
     es.addEventListener("records", (ev) => {
+      if (!live()) return;
       const at = new Date();
       const batch = (JSON.parse((ev as MessageEvent<string>).data) as StreamRecord[]).map((r) => toRec(r, at));
       arrivals.current.push(...batch.map(() => at.getTime()));
@@ -124,10 +127,12 @@ export function RecordsView() {
       setPicked((p) => p ?? batch[0]?.id ?? null);
     });
     es.addEventListener("end", () => {
+      if (!live()) return;
       setNote("tail ended: max records or timeout reached");
       stopTail();
     });
     es.addEventListener("error", (ev) => {
+      if (!live()) return;
       const data = (ev as MessageEvent<string | undefined>).data;
       if (data) setError((JSON.parse(data) as { error: string }).error);
       else if (es.readyState === EventSource.CLOSED) setError("lost connection to the Next.js server");
@@ -140,6 +145,8 @@ export function RecordsView() {
   const loadedFor = useRef<string | undefined>(undefined);
   useEffect(() => {
     stopTail();
+    rangeRequest.current++; // a range read still in flight belongs to the previous server or mode
+    setLoading(false);
     if (!connId) return;
     setRecords([]);
     setPicked(null);

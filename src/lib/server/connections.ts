@@ -1,6 +1,6 @@
 import "server-only";
 import { randomUUID } from "node:crypto";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import path from "node:path";
 import type { ConnectionView, Transport } from "@/lib/types";
 
@@ -41,9 +41,20 @@ export async function listConnections(): Promise<Connection[]> {
   }
 }
 
+/** Writes via a temp file and a rename, so a reader never sees a half-written file. */
 async function save(all: Connection[]): Promise<void> {
   await mkdir(DIR, { recursive: true });
-  await writeFile(FILE, JSON.stringify(all, null, 2), { mode: 0o600 });
+  const tmp = `${FILE}.${process.pid}.tmp`;
+  await writeFile(tmp, JSON.stringify(all, null, 2), { mode: 0o600 });
+  await rename(tmp, FILE);
+}
+
+// Route handlers run concurrently; mutations are read-modify-write on one file, so run them one at a time.
+let queue: Promise<unknown> = Promise.resolve();
+function exclusive<T>(fn: () => Promise<T>): Promise<T> {
+  const run = queue.then(fn, fn);
+  queue = run.catch(() => undefined);
+  return run;
 }
 
 /** The saved connection with exactly this ID. */
@@ -57,16 +68,20 @@ export async function resolveConnection(id: string | undefined): Promise<Connect
   return all.find((c) => c.id === id) ?? all[0];
 }
 
-export async function addConnection(input: Omit<Connection, "id">): Promise<Connection> {
-  const all = await listConnections();
-  const conn: Connection = { ...input, id: randomUUID() };
-  await save([...all, conn]);
-  return conn;
+export function addConnection(input: Omit<Connection, "id">): Promise<Connection> {
+  return exclusive(async () => {
+    const all = await listConnections();
+    const conn: Connection = { ...input, id: randomUUID() };
+    await save([...all, conn]);
+    return conn;
+  });
 }
 
-export async function removeConnection(id: string): Promise<void> {
-  const all = await listConnections();
-  await save(all.filter((c) => c.id !== id));
+export function removeConnection(id: string): Promise<void> {
+  return exclusive(async () => {
+    const all = await listConnections();
+    await save(all.filter((c) => c.id !== id));
+  });
 }
 
 export function toView(c: Connection): ConnectionView {
