@@ -25,6 +25,7 @@ export function Header() {
 
   return (
     <header className="flex flex-wrap items-center gap-4">
+      <h1 className="sr-only">Stratus {NAV.find((n) => (n.href === "/" ? path === "/" : path.startsWith(n.href)))?.label.toLowerCase()}</h1>
       <nav aria-label="Sections" className="flex flex-wrap gap-1">
         {NAV.map((n) => {
           const active = n.href === "/" ? path === "/" : path.startsWith(n.href);

@@ -52,8 +52,7 @@ export function toError(err: unknown): StratusError {
   const e = err as Partial<ServiceError>;
   if (typeof e.code === "number") {
     const code = status[e.code] ?? "UNKNOWN";
-    const hint = e.code === status.RESOURCE_EXHAUSTED ? " (the response is too large to load; narrow the range)" : "";
-    return new StratusError(`${code}: ${e.details || e.message}${hint}`, code);
+    return new StratusError(`${code}: ${e.details || e.message}`, code);
   }
   return new StratusError(err instanceof Error ? err.message : String(err), "UNKNOWN");
 }
@@ -104,6 +103,7 @@ export async function readRange(c: Connection, startId: number, endId: number): 
   } catch (e) {
     // An empty stream, or a window outside it, simply has nothing to show.
     if (e instanceof StratusError && e.code === "OUT_OF_RANGE") return [];
+    if (e instanceof StratusError && e.code === "RESOURCE_EXHAUSTED") throw new StratusError(`${e.message} (the response is too large to load; narrow the range)`, e.code);
     throw e;
   }
 }

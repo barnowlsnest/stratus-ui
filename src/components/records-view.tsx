@@ -112,7 +112,7 @@ export function RecordsView() {
     arrivals.current = [];
     const from = Number(tailStart) > 0 ? tailStart : "1";
     setNote(`live tail from #${from}`);
-    const es = new EventSource(`/api/tail?start=${from}&max=${encodeURIComponent(tailMax)}&timeout=${seconds(tailTimeout)}`);
+    const es = new EventSource(`/api/tail?start=${encodeURIComponent(from)}&max=${encodeURIComponent(tailMax)}&timeout=${seconds(tailTimeout)}`);
     source.current = es;
     setFollowing(true);
     // A queued event from a tail that was replaced or stopped must not touch the current view.
@@ -207,7 +207,7 @@ export function RecordsView() {
     `min-h-11 cursor-pointer border px-3 text-sm font-bold ${on ? "border-magenta bg-magenta text-void" : "border-magenta text-text hover:bg-panel"}`;
 
   return (
-    <div className="flex flex-1 flex-wrap items-stretch gap-4">
+    <main className="flex flex-1 flex-wrap items-stretch gap-4">
       <Panel
         title="STREAM"
         border="magenta"
@@ -216,11 +216,22 @@ export function RecordsView() {
         meta={
           <>
             <span aria-hidden className="text-dim">│</span>
-            <div role="tablist" aria-label="Read mode" className="flex">
-              <button role="tab" aria-selected={mode === "range"} onClick={() => setMode("range")} className={tabClass(mode === "range")}>
+            <div
+              role="tablist"
+              aria-label="Read mode"
+              className="flex"
+              onKeyDown={(e) => {
+                if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+                e.preventDefault();
+                const next = mode === "range" ? "tail" : "range";
+                setMode(next);
+                e.currentTarget.querySelector<HTMLElement>(`[data-mode="${next}"]`)?.focus();
+              }}
+            >
+              <button role="tab" data-mode="range" tabIndex={mode === "range" ? 0 : -1} aria-selected={mode === "range"} onClick={() => setMode("range")} className={tabClass(mode === "range")}>
                 RANGE
               </button>
-              <button role="tab" aria-selected={mode === "tail"} onClick={() => setMode("tail")} className={tabClass(mode === "tail")}>
+              <button role="tab" data-mode="tail" tabIndex={mode === "tail" ? 0 : -1} aria-selected={mode === "tail"} onClick={() => setMode("tail")} className={tabClass(mode === "tail")}>
                 LIVE
               </button>
             </div>
@@ -412,6 +423,6 @@ export function RecordsView() {
           {o.op === "reconcile" && <ReconcileForm dialog onCancel={() => setOp(null)} />}
         </Dialog>
       ))}
-    </div>
+    </main>
   );
 }

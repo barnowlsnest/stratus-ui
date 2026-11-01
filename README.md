@@ -8,6 +8,7 @@ Web console for [Stratus](https://github.com/barnowlsnest/stratus) streams: brow
 
 - Bind it to the loopback interface when running the image (see below).
 - If you need remote access, put it behind something that authenticates (an SSH tunnel, a VPN, or an authenticating reverse proxy) rather than publishing the port.
+- Only the console's own pages can call its API. Requests from other websites and requests for any other hostname get a 403, because a page open in your browser can reach localhost. Behind a reverse proxy or a custom hostname, list the hostnames in `STRATUS_UI_ALLOWED_HOSTS`.
 - Saved connections, including tokens, are written in plain text to `.data/connections.json` (mode 0600).
 
 ## Development
@@ -39,5 +40,6 @@ docker run --rm \
 | --- | --- |
 | `STRATUS_ADDR` | Address of the default connection (default `localhost:8000`). Inside a container, `localhost` is the container itself; use `host.docker.internal` for a server on the host. |
 | `STRATUS_TOKEN` | Bearer token for the default connection. |
+| `STRATUS_UI_ALLOWED_HOSTS` | Comma-separated hostnames allowed besides `localhost`, `127.0.0.1` and `[::1]`. |
 
 The default connection is only created on first start. Connections you add in the UI persist in the `/app/.data` volume.
