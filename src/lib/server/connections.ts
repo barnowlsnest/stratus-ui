@@ -46,7 +46,13 @@ async function save(all: Connection[]): Promise<void> {
   await writeFile(FILE, JSON.stringify(all, null, 2), { mode: 0o600 });
 }
 
-export async function getConnection(id: string | undefined): Promise<Connection | undefined> {
+/** The saved connection with exactly this ID. */
+export async function getConnection(id: string): Promise<Connection | undefined> {
+  return (await listConnections()).find((c) => c.id === id);
+}
+
+/** Like `getConnection`, but a missing or stale ID (e.g. a cookie for a deleted server) falls back to the first saved one. */
+export async function resolveConnection(id: string | undefined): Promise<Connection | undefined> {
   const all = await listConnections();
   return all.find((c) => c.id === id) ?? all[0];
 }

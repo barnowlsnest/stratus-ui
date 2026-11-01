@@ -49,13 +49,19 @@ async function run<T>(fn: () => Promise<T>): Promise<T> {
   }
 }
 
-const range = (r: Range): StreamRange => ({ start: Number(r.start), end: Number(r.end) });
-export const toRecord = (r: OutputRecord): StreamRecord => ({ id: Number(r.id), data: Buffer.from(r.rawData).toString("base64") });
+/** IDs and counts are uint64; the UI uses numbers, so anything past 2^53 is refused rather than silently rounded. */
+function safe(n: bigint): number {
+  if (n > BigInt(Number.MAX_SAFE_INTEGER)) throw new StratusError(`ID ${n} is beyond 2^53 and cannot be shown exactly`, "ID_OUT_OF_RANGE");
+  return Number(n);
+}
+
+const range = (r: Range): StreamRange => ({ start: safe(r.start), end: safe(r.end) });
+export const toRecord = (r: OutputRecord): StreamRecord => ({ id: safe(r.id), data: Buffer.from(r.rawData).toString("base64") });
 
 export function getInfo(c: Connection): Promise<StreamInfo> {
   return run(async () => {
     const info = await clientFor(c).getStreamInfo({ deadlineMs: 5_000 });
-    return { range: range(info.range), cached: Number(info.cachedRecords), disk: Number(info.fsRecords) };
+    return { range: range(info.range), cached: safe(info.cachedRecords), disk: safe(info.fsRecords) };
   });
 }
 
@@ -73,7 +79,7 @@ export async function readRange(c: Connection, startId: number, endId: number): 
 export function addRecord(c: Connection, dedupKey: string, data: Buffer): Promise<AddResult> {
   return run(async () => {
     const res = await clientFor(c).add([{ dedupKey: BigInt(dedupKey), rawData: data }], { deadlineMs: 10_000 });
-    return { added: range(res.addedRecords), stream: range(res.streamRecords), duplicates: Number(res.duplicateRecords) };
+    return { added: range(res.addedRecords), stream: range(res.streamRecords), duplicates: safe(res.duplicateRecords) };
   });
 }
 

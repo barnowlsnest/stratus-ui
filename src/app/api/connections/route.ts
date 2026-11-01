@@ -1,9 +1,9 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { ACTIVE_COOKIE, addConnection, getConnection, listConnections, toView, type Connection } from "@/lib/server/connections";
+import { ACTIVE_COOKIE, addConnection, listConnections, resolveConnection, toView, type Connection } from "@/lib/server/connections";
 import { validate, type ConnectionInput } from "@/lib/server/validate";
 
 export async function GET(req: NextRequest) {
-  const [all, active] = await Promise.all([listConnections(), getConnection(req.cookies.get(ACTIVE_COOKIE)?.value)]);
+  const [all, active] = await Promise.all([listConnections(), resolveConnection(req.cookies.get(ACTIVE_COOKIE)?.value)]);
   return NextResponse.json({ connections: all.map(toView), active: active?.id ?? null });
 }
 

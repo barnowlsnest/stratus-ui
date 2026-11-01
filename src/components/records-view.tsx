@@ -74,6 +74,8 @@ export function RecordsView() {
   // Inputs the user has typed in keep their value; the others follow the stream.
   const touched = useRef({ start: false, end: false, tail: false });
   const arrivals = useRef<number[]>([]);
+  // Only the latest range request may update the view; older responses are dropped.
+  const rangeRequest = useRef(0);
 
   const stopTail = useCallback(() => {
     source.current?.close();
@@ -82,20 +84,22 @@ export function RecordsView() {
   }, []);
 
   const loadRange = useCallback(async () => {
+    const mine = ++rangeRequest.current;
     setLoading(true);
     setError(null);
     try {
       const res = await api<{ records: StreamRecord[]; truncated: boolean }>(
         `/api/records?start=${encodeURIComponent(startId)}&end=${encodeURIComponent(endId)}`,
       );
+      if (mine !== rangeRequest.current) return;
       const at = new Date();
       setRecords(res.records.map((r) => toRec(r, at)));
       setNote(res.truncated ? "showing 500 records, narrow the range to see others" : null);
       setPicked((p) => (res.records.some((r) => r.id === p) ? p : (res.records.at(-1)?.id ?? null)));
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      if (mine === rangeRequest.current) setError(e instanceof Error ? e.message : String(e));
     } finally {
-      setLoading(false);
+      if (mine === rangeRequest.current) setLoading(false);
     }
   }, [startId, endId]);
 
