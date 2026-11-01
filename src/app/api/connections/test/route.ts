@@ -2,13 +2,13 @@ import { NextResponse, type NextRequest } from "next/server";
 import { fail } from "@/lib/server/api";
 import { getInfo } from "@/lib/server/stratus";
 import { getConnection } from "@/lib/server/connections";
-import { validate, type ConnectionInput } from "@/lib/server/validate";
+import { readObject, validate, type ConnectionInput } from "@/lib/server/validate";
 
 /** Probes a server with GetStreamInfo. Pass `id` to probe a saved one, or the fields of an unsaved one. */
 export async function POST(req: NextRequest) {
-  const input = (await req.json().catch(() => ({}))) as ConnectionInput & { id?: string };
+  const input = await readObject<ConnectionInput & { id: string }>(req);
   try {
-    if (input.id) {
+    if (typeof input.id === "string" && input.id) {
       const saved = await getConnection(input.id);
       if (!saved) return NextResponse.json({ error: "No such server" }, { status: 404 });
       return NextResponse.json(await getInfo(saved));

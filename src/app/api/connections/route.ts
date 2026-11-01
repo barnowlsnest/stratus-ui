@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { ACTIVE_COOKIE, addConnection, listConnections, resolveConnection, toView, type Connection } from "@/lib/server/connections";
-import { validate, type ConnectionInput } from "@/lib/server/validate";
+import { readObject, validate, type ConnectionInput } from "@/lib/server/validate";
 
 export async function GET(req: NextRequest) {
   const [all, active] = await Promise.all([listConnections(), resolveConnection(req.cookies.get(ACTIVE_COOKIE)?.value)]);
@@ -8,7 +8,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const input = (await req.json().catch(() => ({}))) as ConnectionInput;
+  const input = await readObject<ConnectionInput>(req);
   const problem = validate(input);
   if (problem) return NextResponse.json({ error: problem }, { status: 400 });
   const conn: Omit<Connection, "id"> = {

@@ -83,13 +83,13 @@ export function RecordsView() {
     setFollowing(false);
   }, []);
 
-  const loadRange = useCallback(async () => {
+  const loadRange = useCallback(async (override?: { start: string; end: string }) => {
     const mine = ++rangeRequest.current;
     setLoading(true);
     setError(null);
     try {
       const res = await api<{ records: StreamRecord[]; truncated: boolean }>(
-        `/api/records?start=${encodeURIComponent(startId)}&end=${encodeURIComponent(endId)}`,
+        `/api/records?start=${encodeURIComponent(override?.start ?? startId)}&end=${encodeURIComponent(override?.end ?? endId)}`,
       );
       if (mine !== rangeRequest.current) return;
       const at = new Date();
@@ -137,6 +137,7 @@ export function RecordsView() {
 
   // Range mode shows the stream as soon as a server is selected; changing server starts over.
   const connId = conn?.id;
+  const loadedFor = useRef<string | undefined>(undefined);
   useEffect(() => {
     stopTail();
     if (!connId) return;
@@ -144,7 +145,10 @@ export function RecordsView() {
     setPicked(null);
     setRx(0);
     setNote(null);
-    if (mode === "range") loadRange();
+    // The inputs still hold the previous server's IDs until the reset effect below runs, so a new server reads its own default window.
+    const switched = loadedFor.current !== connId;
+    loadedFor.current = connId;
+    if (mode === "range") loadRange(switched ? { start: "0", end: "0" } : undefined);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- reload on server or mode change only, not on every keystroke
   }, [connId, mode]);
 
@@ -250,7 +254,7 @@ export function RecordsView() {
                     setEndId(e.target.value);
                   }} className="w-[120px]" />
               </Field>
-              <Button tone="magenta" disabled={loading} onClick={loadRange}>
+              <Button tone="magenta" disabled={loading} onClick={() => loadRange()}>
                 READ RANGE
               </Button>
               <span className="self-center text-xs text-violet">0 = first / last ID</span>

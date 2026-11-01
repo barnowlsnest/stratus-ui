@@ -36,7 +36,9 @@ export function StratusProvider({ children }: { children: ReactNode }) {
   const reloadConn = useCallback(async () => {
     const { connections, active } = await api<{ connections: ConnectionView[]; active: string | null }>("/api/connections");
     const next = connections.find((c) => c.id === active) ?? null;
+    seq.current++; // an in-flight refresh belongs to the previous server
     setInfo(null);
+    setSyncedAt(null);
     setError(null);
     setStatus(next ? "connecting" : "none");
     setConn(next);
