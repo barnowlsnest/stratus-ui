@@ -23,6 +23,7 @@ ENV NODE_ENV=production \
     NEXT_TELEMETRY_DISABLED=1 \
     PORT=3000 \
     HOSTNAME=0.0.0.0
+# The console has no authentication: publish it on loopback only (-p 127.0.0.1:3000:3000).
 # Saved connections live in /app/.data; mount a volume there to keep them.
 RUN mkdir .data && chown node:node .data
 COPY --from=build --chown=node:node /app/.next/standalone ./
