@@ -8,7 +8,9 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const input = await readObject<ConnectionInput>(req);
+  const read = await readObject<ConnectionInput>(req);
+  if ("error" in read) return NextResponse.json({ error: read.error }, { status: read.status });
+  const input = read.value;
   const problem = validate(input);
   if (problem) return NextResponse.json({ error: problem }, { status: 400 });
   const conn: Omit<Connection, "id"> = {

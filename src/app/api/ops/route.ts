@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { connectionFor, fail } from "@/lib/server/api";
+import { readJsonBounded } from "@/lib/server/body";
 import { addRecord, deleteUpTo, reconcile } from "@/lib/server/stratus";
 import type { OpRequest } from "@/lib/types";
 
@@ -16,27 +17,12 @@ function decodeBase64(v: unknown): Buffer | null {
   return bytes.toString("base64") === v ? bytes : null;
 }
 
-/** The JSON body, refused before it is parsed when it is larger than any record the server would accept. */
-async function readBody(req: NextRequest): Promise<{ body: OpRequest } | { status: number; error: string }> {
-  const declared = Number(req.headers.get("content-length"));
-  if (declared > MAX_BODY_BYTES) return { status: 413, error: "Request is too large" };
-  const text = await req.text().catch(() => null);
-  if (text === null) return { status: 400, error: "Invalid request" };
-  if (text.length > MAX_BODY_BYTES) return { status: 413, error: "Request is too large" };
-  try {
-    const body: unknown = JSON.parse(text);
-    if (typeof body === "object" && body !== null) return { body: body as OpRequest };
-  } catch {
-    /* falls through */
-  }
-  return { status: 400, error: "Invalid request" };
-}
-
 /** Append, delete and reconcile: the three commands that change the stream. */
 export async function POST(req: NextRequest) {
-  const parsed = await readBody(req);
-  if ("error" in parsed) return NextResponse.json({ error: parsed.error }, { status: parsed.status });
-  const { body } = parsed;
+  const read = await readJsonBounded(req, MAX_BODY_BYTES);
+  if (!read.ok) return NextResponse.json({ error: read.error }, { status: read.status });
+  if (typeof read.value !== "object" || read.value === null) return NextResponse.json({ error: "Invalid request" }, { status: 400 });
+  const body = read.value as OpRequest;
   try {
     const conn = await connectionFor(req);
     switch (body.op) {

@@ -28,35 +28,39 @@ export async function GET(req: NextRequest) {
   }
   const encoder = new TextEncoder();
 
-  const body = new ReadableStream<Uint8Array>({
-    async start(controller) {
-      const send = (event: string, data: unknown) => {
+  // Pull-based: the next record is only read from gRPC once the previous one has been taken by the
+  // HTTP response, so a slow client slows the tail instead of growing a queue in memory.
+  const records = openTail(conn, start || 1, max || 100, timeout || 30);
+  const body = new ReadableStream<Uint8Array>(
+    {
+      async pull(controller) {
         try {
-          controller.enqueue(encoder.encode(sse(event, data)));
-        } catch {
-          /* client went away */
-        }
-      };
-      try {
-        for await (const record of openTail(conn, start || 1, max || 100, timeout || 30)) {
-          // The tab closed: leaving the loop cancels the gRPC call.
-          if (req.signal.aborted) return;
-          send("records", [toRecord(record)]);
-        }
-        send("end", {});
-      } catch (e) {
-        const err = toError(e);
-        // Cancelling on purpose (the tab closed) is not an error to report.
-        if (err.code !== "CANCELLED") send("error", { error: err.message, code: err.code });
-      } finally {
-        try {
+          if (req.signal.aborted) {
+            await records.return(undefined);
+            controller.close();
+            return;
+          }
+          const next = await records.next();
+          if (next.done) {
+            controller.enqueue(encoder.encode(sse("end", {})));
+            controller.close();
+            return;
+          }
+          controller.enqueue(encoder.encode(sse("records", [toRecord(next.value)])));
+        } catch (e) {
+          const err = toError(e);
+          // Cancelling on purpose (the tab closed) is not an error to report.
+          if (err.code !== "CANCELLED") controller.enqueue(encoder.encode(sse("error", { error: err.message, code: err.code })));
           controller.close();
-        } catch {
-          /* already closed */
         }
-      }
+      },
+      async cancel() {
+        // The client went away: leaving the generator cancels the gRPC call.
+        await records.return(undefined).catch(() => undefined);
+      },
     },
-  });
+    { highWaterMark: 1 },
+  );
 
   return new Response(body, {
     headers: { "Content-Type": "text/event-stream", "Cache-Control": "no-store, no-transform", Connection: "keep-alive" },

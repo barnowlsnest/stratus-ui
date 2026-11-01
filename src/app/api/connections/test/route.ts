@@ -6,7 +6,9 @@ import { readObject, validate, type ConnectionInput } from "@/lib/server/validat
 
 /** Probes a server with GetStreamInfo. Pass `id` to probe a saved one, or the fields of an unsaved one. */
 export async function POST(req: NextRequest) {
-  const input = await readObject<ConnectionInput & { id: string }>(req);
+  const read = await readObject<ConnectionInput & { id: string }>(req);
+  if ("error" in read) return NextResponse.json({ error: read.error }, { status: read.status });
+  const input = read.value;
   try {
     if (typeof input.id === "string" && input.id) {
       const saved = await getConnection(input.id);

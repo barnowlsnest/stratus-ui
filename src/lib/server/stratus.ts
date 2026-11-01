@@ -4,6 +4,9 @@ import { createStratusClient, type OutputRecord, type Range, type StratusClient 
 import type { AddResult, DeleteResult, StreamInfo, StreamRange, StreamRecord } from "@/lib/types";
 import type { Connection } from "./connections";
 
+/** One response is held in memory whole; a range of very large records past this is refused instead. */
+const MAX_RESPONSE_BYTES = 32 * 1024 * 1024;
+
 const clients = new Map<string, StratusClient>();
 
 const build = (c: Connection): StratusClient =>
@@ -11,7 +14,7 @@ const build = (c: Connection): StratusClient =>
     address: c.address,
     token: c.token ?? "",
     tls: c.transport === "plaintext" ? false : c.transport === "tls-ca" && c.caFile ? { caFile: c.caFile } : true,
-    channelOptions: { "grpc.max_receive_message_length": -1 },
+    channelOptions: { "grpc.max_receive_message_length": MAX_RESPONSE_BYTES },
   });
 
 function clientFor(c: Connection): StratusClient {
@@ -49,7 +52,8 @@ export function toError(err: unknown): StratusError {
   const e = err as Partial<ServiceError>;
   if (typeof e.code === "number") {
     const code = status[e.code] ?? "UNKNOWN";
-    return new StratusError(`${code}: ${e.details || e.message}`, code);
+    const hint = e.code === status.RESOURCE_EXHAUSTED ? " (the response is too large to load; narrow the range)" : "";
+    return new StratusError(`${code}: ${e.details || e.message}${hint}`, code);
   }
   return new StratusError(err instanceof Error ? err.message : String(err), "UNKNOWN");
 }
