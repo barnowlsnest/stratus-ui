@@ -20,17 +20,17 @@ export async function GET(req: NextRequest) {
   if (max > MAX_RECORDS || timeout > MAX_TIMEOUT_SEC) {
     return NextResponse.json({ error: `max is at most ${MAX_RECORDS} and timeout at most ${MAX_TIMEOUT_SEC}s` }, { status: 400 });
   }
-  let conn;
+  // Creating the client reads any CA file, so it can throw as well as the connection lookup.
+  let records: ReturnType<typeof openTail>;
   try {
-    conn = await connectionFor(req);
+    records = openTail(await connectionFor(req), start || 1, max || 100, timeout || 30);
   } catch (e) {
-    return fail(e);
+    return fail(toError(e));
   }
   const encoder = new TextEncoder();
 
   // Pull-based: the next record is only read from gRPC once the previous one has been taken by the
   // HTTP response, so a slow client slows the tail instead of growing a queue in memory.
-  const records = openTail(conn, start || 1, max || 100, timeout || 30);
   const body = new ReadableStream<Uint8Array>(
     {
       async pull(controller) {
