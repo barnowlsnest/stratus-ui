@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 
-ARG NODE_VERSION=24
+ARG NODE_VERSION=24.21.0
 
 FROM node:${NODE_VERSION}-alpine AS deps
 # ts-stratus is a git dependency; npm needs git to fetch it and then runs its
