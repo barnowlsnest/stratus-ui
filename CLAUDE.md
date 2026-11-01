@@ -36,6 +36,7 @@ The `e2e` job swaps in `ts-stratus` from its default branch (not the pin) and bu
 - `src/components/stratus-provider.tsx`: the active connection and stream info. Only the latest reload may change state.
 - `src/lib/types.ts`: types shared by server and browser.
 - `e2e/`: Playwright tests of the API and the browser. They run serially, share one stream, and must not assume it starts empty. `e2e/env.ts` fixes the Stratus address with no override.
+- `scripts/readme-screenshots.mts`: regenerates `docs/screenshots` for the README. Rerun it when a change alters a page they show.
 
 ## Things that are easy to get wrong
 
