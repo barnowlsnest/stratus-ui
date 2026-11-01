@@ -43,7 +43,7 @@ The `e2e` job swaps in `ts-stratus` from its default branch (not the pin) and bu
 - **Stratus behavior:** `Delete` keeps the record at `end_id`. An `Add` whose records are all duplicates fails with `ALREADY_EXISTS` (502 from `/api/ops`), and the console sends one record per append, so `duplicates` in a successful append is always 0. `ReadOffset` stops one record short when it catches up with the tail and sends nothing for a max of 1, so `openTail` asks for one more and stops at the limit.
 - **Tail errors:** `EventSource` cannot read a failed response, so errors before the stream starts go out as an SSE `error` event when the client accepts `text/event-stream`, and as JSON otherwise.
 - **Proxy body limit:** proxy buffers bodies and cuts them at `experimental.proxyClientMaxBodySize`. Keep it above the 12 MiB limit in `/api/ops`, or that route cannot answer 413.
-- **Standalone builds:** `next build` recreates `.next/standalone`, including its `.data`. To run it outside Docker, copy `.next/static` to `.next/standalone/.next/static` first. The process renames itself `next-server`, so find it by port to stop it.
+- **Standalone builds:** `next build` recreates `.next/standalone` and file tracing copies the repo's `.data/connections.json`, tokens included, into its `.data`. The Docker image is not affected because `.dockerignore` excludes `.data`, and the e2e server deletes the copy before starting. To run it outside Docker, copy `.next/static` to `.next/standalone/.next/static` first. The process renames itself `next-server`, so find it by port to stop it.
 
 ## Testing against Stratus
 
