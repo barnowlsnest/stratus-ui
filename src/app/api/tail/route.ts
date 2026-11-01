@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { connectionFor, fail, parseId } from "@/lib/server/api";
-import { openTail, toError, toRecord } from "@/lib/server/stratus";
+import { openTail, StratusError, toError, toRecord } from "@/lib/server/stratus";
 
 export const dynamic = "force-dynamic";
 
@@ -59,7 +59,9 @@ export async function GET(req: NextRequest) {
           }
           controller.enqueue(encoder.encode(sse("records", [toRecord(next.value)])));
         } catch (e) {
-          const err = toError(e);
+          const failure = toError(e);
+          // The server sends what is available as one message, which can pass the client's size limit.
+          const err = failure.code === "RESOURCE_EXHAUSTED" ? new StratusError(`${failure.message} (too much data at once; lower MAX RECORDS or start later)`, failure.code) : failure;
           // Cancelling on purpose (the tab closed) is not an error to report.
           if (err.code !== "CANCELLED") controller.enqueue(encoder.encode(sse("error", { error: err.message, code: err.code })));
           controller.close();

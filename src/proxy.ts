@@ -8,9 +8,11 @@ function allowedHosts(): string[] {
   return [...LOCAL_HOSTS, ...extra.split(",").map((h) => h.trim().toLowerCase()).filter(Boolean)];
 }
 
+/** The lowercase hostname of a Host header; null if it is anything but host or host:port. */
 function hostname(host: string | null): string | null {
+  if (!host || !/^[a-z0-9.-]+(:\d+)?$|^\[[0-9a-f:.]+\](:\d+)?$/i.test(host)) return null;
   try {
-    return host ? new URL(`http://${host}`).hostname : null;
+    return new URL(`http://${host}`).hostname;
   } catch {
     return null;
   }
@@ -18,7 +20,7 @@ function hostname(host: string | null): string | null {
 
 function originMatches(origin: string, host: string | null): boolean {
   try {
-    return new URL(origin).host === host;
+    return new URL(origin).host === host?.toLowerCase();
   } catch {
     return false;
   }
@@ -40,7 +42,9 @@ export function proxy(req: NextRequest) {
   // Browsers set Sec-Fetch-Site on trustworthy origins; elsewhere Origin is what they send. Tools like curl send neither.
   const site = req.headers.get("sec-fetch-site");
   const origin = req.headers.get("origin");
-  if (site ? site !== "same-origin" && site !== "none" : origin !== null && !originMatches(origin, host)) {
+  // "none" means the user opened the URL themselves, which can only ever be a read.
+  const userOpened = site === "none" && (req.method === "GET" || req.method === "HEAD");
+  if (site ? site !== "same-origin" && !userOpened : origin !== null && !originMatches(origin, host)) {
     return refuse("Cross-site requests are not allowed.");
   }
 

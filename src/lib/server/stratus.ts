@@ -137,12 +137,12 @@ async function* take(source: AsyncGenerator<OutputRecord, void>, n: number): Asy
 }
 
 /**
- * Opens a live tail of at most `maxRecords`. The server returns nothing for a
- * max of 1 (its end bound is exclusive), so ask for 2 and keep one.
+ * Opens a live tail of exactly `maxRecords`, or fewer if it times out. The server
+ * stops one record short when it catches up with the stream (and sends nothing
+ * for a max of 1), so ask for one more and stop at the limit here.
  * Breaking out of the loop cancels the underlying call.
  */
 export function openTail(c: Connection, startId: number, maxRecords: number, timeoutSec: number): AsyncGenerator<OutputRecord, void> {
   const serverTimeoutMs = Math.max(1, Math.floor(timeoutSec)) * 1000;
-  const asked = Math.max(maxRecords, 2);
-  return take(clientFor(c).readOffset(startId, asked, { serverTimeoutMs }), maxRecords);
+  return take(clientFor(c).readOffset(startId, maxRecords + 1, { serverTimeoutMs }), maxRecords);
 }
