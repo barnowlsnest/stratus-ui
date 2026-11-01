@@ -1,0 +1,95 @@
+import "server-only";
+import { status, type ServiceError } from "@grpc/grpc-js";
+import { createStratusClient, type OutputRecord, type Range, type StratusClient } from "ts-stratus";
+import type { AddResult, DeleteResult, StreamInfo, StreamRange, StreamRecord } from "@/lib/types";
+import type { Connection } from "./connections";
+
+const clients = new Map<string, StratusClient>();
+
+function clientFor(c: Connection): StratusClient {
+  const key = [c.id, c.address, c.transport, c.caFile ?? "", c.token ?? ""].join("|");
+  let client = clients.get(key);
+  if (!client) {
+    client = createStratusClient({
+      address: c.address,
+      token: c.token ?? "",
+      tls: c.transport === "plaintext" ? false : c.transport === "tls-ca" && c.caFile ? { caFile: c.caFile } : true,
+      channelOptions: { "grpc.max_receive_message_length": -1 },
+    });
+    clients.set(key, client);
+  }
+  return client;
+}
+
+/** A gRPC failure reduced to what the UI shows. */
+export class StratusError extends Error {
+  constructor(
+    message: string,
+    readonly code: string,
+  ) {
+    super(message);
+  }
+}
+
+export function toError(err: unknown): StratusError {
+  if (err instanceof StratusError) return err;
+  const e = err as Partial<ServiceError>;
+  if (typeof e.code === "number") {
+    const code = status[e.code] ?? "UNKNOWN";
+    return new StratusError(`${code}: ${e.details || e.message}`, code);
+  }
+  return new StratusError(err instanceof Error ? err.message : String(err), "UNKNOWN");
+}
+
+async function run<T>(fn: () => Promise<T>): Promise<T> {
+  try {
+    return await fn();
+  } catch (e) {
+    throw toError(e);
+  }
+}
+
+const range = (r: Range): StreamRange => ({ start: Number(r.start), end: Number(r.end) });
+export const toRecord = (r: OutputRecord): StreamRecord => ({ id: Number(r.id), data: Buffer.from(r.rawData).toString("base64") });
+
+export function getInfo(c: Connection): Promise<StreamInfo> {
+  return run(async () => {
+    const info = await clientFor(c).getStreamInfo({ deadlineMs: 5_000 });
+    return { range: range(info.range), cached: Number(info.cachedRecords), disk: Number(info.fsRecords) };
+  });
+}
+
+export async function readRange(c: Connection, startId: number, endId: number): Promise<StreamRecord[]> {
+  try {
+    const records = await run(() => clientFor(c).readRange(startId, endId, { deadlineMs: 10_000 }));
+    return records.map(toRecord);
+  } catch (e) {
+    // An empty stream, or a window outside it, simply has nothing to show.
+    if (e instanceof StratusError && e.code === "OUT_OF_RANGE") return [];
+    throw e;
+  }
+}
+
+export function addRecord(c: Connection, dedupKey: string, data: Buffer): Promise<AddResult> {
+  return run(async () => {
+    const res = await clientFor(c).add([{ dedupKey: BigInt(dedupKey), rawData: data }], { deadlineMs: 10_000 });
+    return { added: range(res.addedRecords), stream: range(res.streamRecords), duplicates: Number(res.duplicateRecords) };
+  });
+}
+
+export function deleteUpTo(c: Connection, endId: string): Promise<DeleteResult> {
+  return run(async () => {
+    const res = await clientFor(c).deleteUpTo(BigInt(endId), { deadlineMs: 10_000 });
+    return { deleted: range(res.deletedRecords), stream: range(res.streamRecords) };
+  });
+}
+
+export function reconcile(c: Connection): Promise<StreamRange> {
+  return run(async () => range(await clientFor(c).reconcileCache({ deadlineMs: 60_000 })));
+}
+
+/** Opens a live tail. Breaking out of the loop cancels the underlying call. */
+export function openTail(c: Connection, startId: number, maxRecords: number, timeoutSec: number): AsyncGenerator<OutputRecord, void> {
+  const serverTimeoutMs = Math.max(1, Math.floor(timeoutSec)) * 1000;
+  return clientFor(c).readOffset(startId, maxRecords, { serverTimeoutMs });
+}

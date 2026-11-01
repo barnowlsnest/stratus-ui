@@ -1,0 +1,41 @@
+@import "tailwindcss";
+
+/* Palette taken from the stratuscli TUI (cmd/cli/tui/styles.go). */
+@theme {
+  --color-void: #08000f;
+  --color-panel: #150033;
+  --color-magenta: #ff2bd6;
+  --color-cyan: #00f0ff;
+  --color-violet: #a06bff;
+  --color-lime: #8bff3f;
+  --color-amber: #ffb000;
+  --color-red: #ff2e63;
+  --color-dim: #6a4b9c;
+  --color-text: #d9e7ff;
+
+  --font-mono: ui-monospace, SFMono-Regular, "JetBrains Mono", Menlo, Consolas, monospace;
+}
+
+html,
+body {
+  margin: 0;
+  background: var(--color-void);
+  color: var(--color-text);
+  font-family: var(--font-mono), sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+button,
+input,
+textarea {
+  font-family: inherit;
+}
+
+a {
+  text-decoration: none;
+}
+
+dialog::backdrop {
+  background: rgb(8 0 15 / 0.72);
+}
