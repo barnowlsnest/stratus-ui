@@ -33,6 +33,8 @@ npm run typecheck
 npm run build
 ```
 
+GitHub Actions (`.github/workflows/ci.yml`) runs the typecheck, the build and a Docker image build on every pull request and every push to `main`. It publishes nothing.
+
 ## Docker
 
 ```bash

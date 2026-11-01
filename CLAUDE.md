@@ -21,6 +21,8 @@ docker build -t stratus-ui .
 
 If Tailwind reports a missing native binding, run `rm -rf node_modules .next && npm ci` under the right Node version.
 
+CI is `.github/workflows/ci.yml`: `npm ci`, typecheck and build on the Node version in `.nvmrc`, plus a Docker image build that is not pushed. It runs on pull requests and pushes to `main`, and has no Stratus server. Actions are pinned to commit SHAs, so bump the SHA and its version comment together.
+
 ## Layout
 
 - `src/proxy.ts`: guards `/api`. Allows only loopback hostnames plus `STRATUS_UI_ALLOWED_HOSTS`, refuses cross-site requests, and requires JSON on POST. The console has no login, so this is what stops other websites using it.
