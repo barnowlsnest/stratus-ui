@@ -122,8 +122,23 @@ export function reconcile(c: Connection): Promise<StreamRange> {
   return run(async () => range(await clientFor(c).reconcileCache({ deadlineMs: 60_000 })));
 }
 
-/** Opens a live tail. Breaking out of the loop cancels the underlying call. */
+/** Yields at most `n` records, then returns, which cancels the underlying call. */
+async function* take(source: AsyncGenerator<OutputRecord, void>, n: number): AsyncGenerator<OutputRecord, void> {
+  if (n <= 0) return;
+  let seen = 0;
+  for await (const record of source) {
+    yield record;
+    if (++seen >= n) return;
+  }
+}
+
+/**
+ * Opens a live tail of at most `maxRecords`. The server returns nothing for a
+ * max of 1 (its end bound is exclusive), so ask for 2 and keep one.
+ * Breaking out of the loop cancels the underlying call.
+ */
 export function openTail(c: Connection, startId: number, maxRecords: number, timeoutSec: number): AsyncGenerator<OutputRecord, void> {
   const serverTimeoutMs = Math.max(1, Math.floor(timeoutSec)) * 1000;
-  return clientFor(c).readOffset(startId, maxRecords, { serverTimeoutMs });
+  const asked = Math.max(maxRecords, 2);
+  return take(clientFor(c).readOffset(startId, asked, { serverTimeoutMs }), maxRecords);
 }

@@ -32,9 +32,12 @@ export function StratusProvider({ children }: { children: ReactNode }) {
   const [syncedAt, setSyncedAt] = useState<number | null>(null);
   const [autoRefresh, setAutoRefresh] = useState(true);
   const seq = useRef(0);
+  const reloads = useRef(0);
 
   const reloadConn = useCallback(async () => {
+    const mine = ++reloads.current;
     const { connections, active } = await api<{ connections: ConnectionView[]; active: string | null }>("/api/connections");
+    if (mine !== reloads.current) return; // a newer reload was started while this one was in flight
     const next = connections.find((c) => c.id === active) ?? null;
     seq.current++; // an in-flight refresh belongs to the previous server
     setInfo(null);
