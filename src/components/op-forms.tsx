@@ -132,8 +132,8 @@ export function DeleteForm({ onDone, onCancel, dialog }: FormProps) {
 
   return (
     <>
-      <Desc>Delete every record before an ID. The record with that ID stays and becomes the first one. This cannot be undone.</Desc>
-      <Field label="DELETE BEFORE ID">
+      <Desc>Delete every record up to and including an ID. The record with that ID is removed. This cannot be undone.</Desc>
+      <Field label="DELETE THROUGH ID">
         <Input inputMode="numeric" placeholder="1000" value={id} onChange={(e) => setId(e.target.value)} className="max-w-52" />
       </Field>
       <Result ok={false}>
