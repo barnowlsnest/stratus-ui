@@ -140,6 +140,12 @@ export function RecordsView() {
     });
   }, [stopTail, tailStart, tailMax, tailTimeout]);
 
+  // A command moves the stream, and the prefilled IDs have not caught up yet: inputs the user has not typed in read the stream's own first and last ID.
+  const reloadAfterCommand = () => {
+    if (mode !== "range") return;
+    loadRange({ start: touched.current.start ? startId : "0", end: touched.current.end ? endId : "0" });
+  };
+
   // Range mode shows the stream as soon as a server is selected; changing server starts over.
   const connId = conn?.id;
   const loadedFor = useRef<string | undefined>(undefined);
@@ -418,8 +424,8 @@ export function RecordsView() {
 
       {OPS.map((o) => (
         <Dialog key={o.op} open={op === o.op} onClose={() => setOp(null)} title={o.name} tone={o.tone}>
-          {o.op === "append" && <AppendForm dialog onCancel={() => setOp(null)} onDone={() => mode === "range" && loadRange()} />}
-          {o.op === "delete" && <DeleteForm dialog onCancel={() => setOp(null)} onDone={() => mode === "range" && loadRange()} />}
+          {o.op === "append" && <AppendForm dialog onCancel={() => setOp(null)} onDone={reloadAfterCommand} />}
+          {o.op === "delete" && <DeleteForm dialog onCancel={() => setOp(null)} onDone={reloadAfterCommand} />}
           {o.op === "reconcile" && <ReconcileForm dialog onCancel={() => setOp(null)} />}
         </Dialog>
       ))}

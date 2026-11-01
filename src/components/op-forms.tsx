@@ -78,7 +78,7 @@ export function AppendForm({ onDone, onCancel, dialog }: FormProps) {
   return (
     <>
       <Desc>
-        Push a record onto the stream. A dedup key seen within the server&apos;s dedup window (default 1m) is dropped and counted as a duplicate.
+        Push a record onto the stream. A dedup key seen within the server&apos;s dedup window (default 1m) is refused with ALREADY_EXISTS and nothing is written.
       </Desc>
       <Field label="DEDUP KEY" hint="non-zero number, required">
         <Input inputMode="numeric" placeholder="1" value={key} onChange={(e) => setKey(e.target.value)} className="max-w-60" />
