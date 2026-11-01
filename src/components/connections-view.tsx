@@ -44,6 +44,7 @@ export function ConnectionsView() {
   const [failure, setFailure] = useState<{ message: string; mode: "test" | "save" } | null>(null);
   const [reachable, setReachable] = useState<StreamInfo | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
+  const [opening, setOpening] = useState(false);
   const nameInput = useRef<HTMLInputElement>(null);
 
   const probe = useCallback(async (c: ConnectionView) => {
@@ -65,21 +66,37 @@ export function ConnectionsView() {
   }, [probe]);
 
   useEffect(() => {
-    load();
+    load().catch((e: unknown) => setFormError(e instanceof Error ? e.message : String(e)));
   }, [load]);
 
+  const report = (e: unknown) => setFormError(e instanceof Error ? e.message : String(e));
+
+  // One switch at a time: overlapping ones could finish in any order and leave the wrong server active.
   const open = async (c: ConnectionView) => {
-    await api(`/api/connections/${c.id}`, { method: "PUT" });
-    await reloadConn();
-    router.push("/");
+    setOpening(true);
+    setFormError(null);
+    try {
+      await api(`/api/connections/${c.id}`, { method: "PUT" });
+      await reloadConn();
+      router.push("/");
+    } catch (e) {
+      report(e);
+    } finally {
+      setOpening(false);
+    }
   };
 
   const remove = async (c: ConnectionView) => {
     if (!window.confirm(`Remove "${c.name}" (${c.address})? The saved address and token are deleted.`)) return;
-    await api(`/api/connections/${c.id}`, { method: "DELETE" });
-    // Removing the active server selects the first one left, or none if that was the last.
-    if (c.id === active?.id) await reloadConn();
-    await load();
+    setFormError(null);
+    try {
+      await api(`/api/connections/${c.id}`, { method: "DELETE" });
+      // Removing the active server selects the first one left, or none if that was the last.
+      if (c.id === active?.id) await reloadConn();
+      await load();
+    } catch (e) {
+      report(e);
+    }
   };
 
   const run = async (mode: "test" | "save") => {
@@ -139,7 +156,7 @@ export function ConnectionsView() {
                   {h.state === "offline" && <div className="text-xs text-red [overflow-wrap:anywhere]">{h.error}</div>}
                 </div>
                 <span className={`text-xs font-bold ${v.color}`}>{v.text}</span>
-                <Button onClick={() => open(c)}>OPEN</Button>
+                <Button disabled={opening} onClick={() => open(c)}>OPEN</Button>
                 <Button
                   tone="redOutline"
                   aria-label={`Remove ${c.name}`}

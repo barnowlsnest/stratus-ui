@@ -34,19 +34,6 @@ export function StratusProvider({ children }: { children: ReactNode }) {
   const seq = useRef(0);
   const reloads = useRef(0);
 
-  const reloadConn = useCallback(async () => {
-    const mine = ++reloads.current;
-    const { connections, active } = await api<{ connections: ConnectionView[]; active: string | null }>("/api/connections");
-    if (mine !== reloads.current) return; // a newer reload was started while this one was in flight
-    const next = connections.find((c) => c.id === active) ?? null;
-    seq.current++; // an in-flight refresh belongs to the previous server
-    setInfo(null);
-    setSyncedAt(null);
-    setError(null);
-    setStatus(next ? "connecting" : "none");
-    setConn(next);
-  }, []);
-
   const refresh = useCallback(async () => {
     const mine = ++seq.current;
     try {
@@ -62,6 +49,33 @@ export function StratusProvider({ children }: { children: ReactNode }) {
       setError(e instanceof Error ? e.message : String(e));
     }
   }, []);
+
+  const reloadConn = useCallback(async () => {
+    const mine = ++reloads.current;
+    try {
+      const { connections, active } = await api<{ connections: ConnectionView[]; active: string | null }>("/api/connections");
+      if (mine !== reloads.current) return; // a newer reload was started while this one was in flight
+      const next = connections.find((c) => c.id === active) ?? null;
+      seq.current++; // an in-flight refresh belongs to the previous server
+      setInfo(null);
+      setSyncedAt(null);
+      setError(null);
+      setStatus(next ? "connecting" : "none");
+      setConn(next);
+      // The poll only restarts when the server changes; reopening the same one still needs fresh info.
+      if (next) void refresh();
+    } catch (e) {
+      if (mine !== reloads.current) return; // only the latest reload speaks for the current state
+      // The active server may have just changed on the server, so showing the old one would be a lie.
+      seq.current++;
+      setConn(null);
+      setInfo(null);
+      setSyncedAt(null);
+      setStatus("offline");
+      setError(e instanceof Error ? e.message : String(e));
+      throw e;
+    }
+  }, [refresh]);
 
   useEffect(() => {
     reloadConn().catch(() => setStatus("offline"));
