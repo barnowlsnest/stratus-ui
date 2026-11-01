@@ -83,7 +83,7 @@ export function AppendForm({ onDone, onCancel, dialog }: FormProps) {
       <Field label="DEDUP KEY" hint="non-zero number, required">
         <Input inputMode="numeric" placeholder="1" value={key} onChange={(e) => setKey(e.target.value)} className="max-w-60" />
       </Field>
-      <Field label="DATA" hint="up to the server's record limit (8 MB by default)">
+      <Field label="DATA" hint="just under 4 MiB on a default server">
         {file ? (
           <div className="flex items-center gap-3 border border-dim px-3 py-2 font-normal text-text">
             <span className="min-w-0 flex-1 truncate">
@@ -132,12 +132,12 @@ export function DeleteForm({ onDone, onCancel, dialog }: FormProps) {
 
   return (
     <>
-      <Desc>Truncate the stream up to and including an ID. The first ID moves forward. This cannot be undone.</Desc>
-      <Field label="DELETE UP TO ID">
+      <Desc>Delete every record before an ID. The record with that ID stays and becomes the first one. This cannot be undone.</Desc>
+      <Field label="DELETE BEFORE ID">
         <Input inputMode="numeric" placeholder="1000" value={id} onChange={(e) => setId(e.target.value)} className="max-w-52" />
       </Field>
       <Result ok={false}>
-        {info ? `stream is ${range(info.range)} · ` : ""}records up to this id are gone for good
+        {info ? `stream is ${range(info.range)} · ` : ""}records before this id are gone for good
       </Result>
       {cmd.result && (
         <Result ok>

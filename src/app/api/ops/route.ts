@@ -4,7 +4,7 @@ import { readJsonBounded } from "@/lib/server/body";
 import { addRecord, deleteUpTo, reconcile } from "@/lib/server/stratus";
 import type { OpRequest } from "@/lib/types";
 
-/** The server's default record limit is 8 MiB; base64 adds a third, plus room for the JSON around it. */
+/** Above the server's default 4 MiB message limit, leaving room for servers configured higher (8 MiB once base64 adds a third). */
 const MAX_BODY_BYTES = 12 * 1024 * 1024;
 const UINT64_MAX = 2n ** 64n - 1n;
 

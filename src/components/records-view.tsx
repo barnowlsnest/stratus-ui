@@ -34,7 +34,7 @@ const toRec = (r: StreamRecord, time: Date): Rec => {
 type Op = "append" | "delete" | "reconcile";
 const OPS: { op: Op; name: string; desc: string; tone: "lime" | "red" | "amber"; text: string; hover: string }[] = [
   { op: "append", name: "APPEND", desc: "push a record onto the stream", tone: "lime", text: "text-lime", hover: "hover:shadow-[inset_0_0_0_1px_var(--color-lime)]" },
-  { op: "delete", name: "DELETE", desc: "truncate the stream up to an id", tone: "red", text: "text-red", hover: "hover:shadow-[inset_0_0_0_1px_var(--color-red)]" },
+  { op: "delete", name: "DELETE", desc: "delete the records before an id", tone: "red", text: "text-red", hover: "hover:shadow-[inset_0_0_0_1px_var(--color-red)]" },
   { op: "reconcile", name: "RECONCILE", desc: "rebuild the in-memory cache", tone: "amber", text: "text-amber", hover: "hover:shadow-[inset_0_0_0_1px_var(--color-amber)]" },
 ];
 
