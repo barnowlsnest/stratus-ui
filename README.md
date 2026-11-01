@@ -4,14 +4,7 @@ Web console for [Stratus](https://github.com/barnowlsnest/stratus) streams: brow
 
 ![The records page showing a stream of order events, with stream info and commands beside it](docs/screenshots/records.png)
 
-## Security: run it on localhost only
-
-**The console has no authentication.** Anyone who can reach its port can read streams, append, delete and reconcile, manage saved connections, and use the bearer tokens stored on the server. Do not expose it on a network.
-
-- Bind it to the loopback interface when running the image (see below).
-- If you need remote access, put it behind something that authenticates (an SSH tunnel, a VPN, or an authenticating reverse proxy) rather than publishing the port.
-- Only the console's own pages can call its API. Requests from other websites and requests for any other hostname get a 403, because a page open in your browser can reach localhost. Behind a reverse proxy or a custom hostname, list the hostnames in `STRATUS_UI_ALLOWED_HOSTS`.
-- Saved connections, including tokens, are written in plain text to `.data/connections.json` (mode 0600).
+It is a single-user console with no login of its own, made to run on your machine or behind your own access control. See [Security](#security).
 
 ## What it looks like
 
@@ -115,3 +108,10 @@ docker run --rm \
 | `STRATUS_UI_ALLOWED_HOSTS` | Comma-separated hostnames allowed besides `localhost`, `127.0.0.1` and `[::1]`. |
 
 The default connection is only created on first start. Connections you add in the UI persist in the `/app/.data` volume.
+
+## Security
+
+The console has no login, so whoever can reach its port can use it, including its saved connections and their tokens. Run it on localhost, as the command above does. For remote access, put it behind something that authenticates, such as an SSH tunnel, a VPN or an authenticating reverse proxy.
+
+- **Other websites are blocked.** Only the console's own pages can call its API. Requests from other sites and for other hostnames get a 403. Behind a reverse proxy or a custom hostname, list the hostnames in `STRATUS_UI_ALLOWED_HOSTS`.
+- **Tokens stay on the server.** The browser never receives them. They are stored in plain text in `.data/connections.json`, with mode 0600.
