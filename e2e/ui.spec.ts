@@ -3,7 +3,7 @@ import { STRATUS_ADDRESS } from "./env";
 
 test.describe.configure({ mode: "serial" });
 
-const NAME = "e2e-ui";
+const NAME = `e2e-ui-${process.pid}-${Date.now()}`;
 
 /** The dedup window outlives a run, so keys must differ between runs against the same server. */
 let nextKey = Date.now() + 1_000_000;
