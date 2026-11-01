@@ -18,3 +18,7 @@ next-env.d.ts
 
 .data/
 .env*.local
+
+# playwright
+/test-results
+/playwright-report

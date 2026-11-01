@@ -16,7 +16,7 @@ Web console for [Stratus](https://github.com/barnowlsnest/stratus) streams: brow
 Measured against `barnowlsnest/stratus`:
 
 - **Delete** removes the records before the ID you enter. The record with that ID stays and becomes the first one, so a stream cannot be emptied. The Stratus server behaves this way, and the form says so.
-- **Append** takes records just under 4 MiB on a default server.
+- **Append** takes records just under 4 MiB on a default server. A dedup key seen within the server's dedup window (default 1m) is refused with `ALREADY_EXISTS` and nothing is written.
 - **Range reads** show at most 500 records. A response over 32 MiB is refused with a message to narrow the range, so records averaging over about 65 KB need a narrower range than the default window.
 - **Live tail** returns exactly MAX RECORDS (up to 100,000) with a timeout of up to 3600s. A batch over 32 MiB stops the tail with a message to lower MAX RECORDS or start later. Closing a tab ends the gRPC call on the next record or at the timeout.
 - **Request bodies** are limited to 12 MiB for operations and 64 KiB for connection forms.
@@ -33,7 +33,23 @@ npm run typecheck
 npm run build
 ```
 
-GitHub Actions (`.github/workflows/ci.yml`) runs the typecheck, the build and a Docker image build on every pull request and every push to `main`. It publishes nothing.
+GitHub Actions (`.github/workflows/ci.yml`) runs the typecheck, the build, a Docker image build and the end-to-end tests on every pull request and every push to `main`. It publishes nothing.
+
+### End-to-end tests
+
+The tests drive the production build through its API and a real browser, against a real Stratus. They write and delete records, so they only ever talk to `127.0.0.1:8001`, a throwaway server you start first:
+
+```bash
+docker build -t stratus-e2e -f app.Dockerfile https://github.com/barnowlsnest/stratus.git#v1.6.0   # or any release tag
+docker run -d --rm --name stratus-scratch -e WAL_DIR=/usr/wal -e HOST=0.0.0.0 \
+  -p 127.0.0.1:8001:8000 stratus-e2e
+
+npx playwright install chromium    # once
+npm run test:e2e
+docker stop stratus-scratch
+```
+
+CI uses the latest Stratus release, built from source, and the latest commit on the `ts-stratus` default branch, not the commit pinned in `package.json`. A new upstream release can therefore fail a pull request that changed nothing related.
 
 ## Docker
 
